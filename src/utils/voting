@@ -1,0 +1,527 @@
+import React, { useState } from 'react';
+import { BarChart3, Plus, Trash2, Vote, Trophy, Home } from 'lucide-react';
+
+export default function VotingApp() {
+  const [polls, setPolls] = useState([
+    {
+      id: 1,
+      question: "What's your favorite programming language?",
+      options: [
+        { id: 1, text: 'JavaScript', votes: 12 },
+        { id: 2, text: 'Python', votes: 8 },
+        { id: 3, text: 'Java', votes: 5 },
+        { id: 4, text: 'Go', votes: 3 }
+      ],
+      votedBy: []
+    }
+  ]);
+  
+  const [currentPage, setCurrentPage] = useState('home');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [newOptions, setNewOptions] = useState(['', '']);
+  const [userId] = useState(`user_${Math.random().toString(36).substr(2, 9)}`);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedPoll, setSelectedPoll] = useState(null);
+
+  const addOption = () => {
+    setNewOptions([...newOptions, '']);
+  };
+
+  const removeOption = (idx) => {
+    if (newOptions.length > 2) {
+      setNewOptions(newOptions.filter((_, i) => i !== idx));
+    }
+  };
+
+  const updateOption = (idx, val) => {
+    const updated = [...newOptions];
+    updated[idx] = val;
+    setNewOptions(updated);
+  };
+
+  const createPoll = () => {
+    if (!newQuestion.trim() || newOptions.filter(o => o.trim()).length < 2) {
+      alert('Please enter a question and at least 2 options');
+      return;
+    }
+
+    const poll = {
+      id: Date.now(),
+      question: newQuestion,
+      options: newOptions
+        .filter(o => o.trim())
+        .map((o, i) => ({ id: i + 1, text: o, votes: 0 })),
+      votedBy: []
+    };
+
+    setPolls([poll, ...polls]);
+    setNewQuestion('');
+    setNewOptions(['', '']);
+    setShowCreateForm(false);
+  };
+
+  const vote = (pollId, optionId) => {
+    setPolls(polls.map(p => {
+      if (p.id === pollId) {
+        if (p.votedBy.includes(userId)) {
+          alert('You have already voted on this poll!');
+          return p;
+        }
+        return {
+          ...p,
+          options: p.options.map(o =>
+            o.id === optionId ? { ...o, votes: o.votes + 1 } : o
+          ),
+          votedBy: [...p.votedBy, userId]
+        };
+      }
+      return p;
+    }));
+  };
+
+  const deletePoll = (pollId) => {
+    setPolls(polls.filter(p => p.id !== pollId));
+  };
+
+  const getTotalVotes = (poll) => {
+    return poll.options.reduce((sum, o) => sum + o.votes, 0);
+  };
+
+  const getPercentage = (votes, total) => {
+    return total === 0 ? 0 : Math.round((votes / total) * 100);
+  };
+
+  const getWinner = (poll) => {
+    if (poll.options.length === 0) return null;
+    const sorted = [...poll.options].sort((a, b) => b.votes - a.votes);
+    return sorted[0].votes > 0 ? sorted[0] : null;
+  };
+
+  const showOptionDetail = (poll, option) => {
+    setSelectedPoll(poll);
+    setSelectedOption(option);
+  };
+
+  const closeModal = () => {
+    setSelectedOption(null);
+    setSelectedPoll(null);
+  };
+
+  const renderResultsPage = () => {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Trophy className="w-8 h-8 text-yellow-500" />
+            <h2 className="text-2xl font-bold text-gray-800">Election Results</h2>
+          </div>
+          <p className="text-gray-600 mb-4">Here are the winners from all active polls</p>
+        </div>
+
+        {polls.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+            <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">No polls available yet.</p>
+          </div>
+        ) : (
+          polls.map(poll => {
+            const winner = getWinner(poll);
+            const total = getTotalVotes(poll);
+            const allOptions = [...poll.options].sort((a, b) => b.votes - a.votes);
+
+            return (
+              <div key={poll.id} className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">{poll.question}</h3>
+                
+                {total === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No votes cast yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Winner Card */}
+                    {winner && (
+                      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400 rounded-lg p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Trophy className="w-8 h-8 text-yellow-600" />
+                          <div>
+                            <p className="text-sm font-semibold text-yellow-700 uppercase">Winner</p>
+                            <p className="text-2xl font-bold text-gray-800">{winner.text}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-center">
+                            <p className="text-3xl font-bold text-yellow-600">{winner.votes}</p>
+                            <p className="text-sm text-gray-600">votes</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-3xl font-bold text-yellow-600">
+                              {getPercentage(winner.votes, total)}%
+                            </p>
+                            <p className="text-sm text-gray-600">of total</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All Results */}
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-3">Complete Results</h4>
+                      <div className="space-y-2">
+                        {allOptions.map((option, idx) => {
+                          const percentage = getPercentage(option.votes, total);
+                          const isWinner = winner && option.id === winner.id;
+                          
+                          return (
+                            <div 
+                              key={option.id}
+                              className={`p-4 rounded-lg border-2 cursor-pointer hover:shadow-md transition ${
+                                isWinner 
+                                  ? 'bg-yellow-50 border-yellow-300' 
+                                  : 'bg-gray-50 border-gray-200'
+                              }`}
+                              onClick={() => showOptionDetail(poll, option)}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-semibold text-gray-600">#{idx + 1}</span>
+                                  <span className="font-medium text-gray-800">{option.text}</span>
+                                </div>
+                                <span className="text-sm font-semibold text-purple-600">
+                                  {option.votes} votes ({percentage}%)
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all duration-500 ${
+                                    isWinner ? 'bg-yellow-500' : 'bg-purple-600'
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-600">
+                        Total votes: <span className="font-semibold">{total}</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    );
+  };
+
+  const renderHomePage = () => {
+    return (
+      <>
+        {/* Create Poll Form */}
+        {showCreateForm && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Create New Poll</h2>
+            
+            <input
+              type="text"
+              placeholder="Enter your question..."
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+
+            <div className="space-y-2 mb-4">
+              {newOptions.map((opt, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={`Option ${idx + 1}`}
+                    value={opt}
+                    onChange={(e) => updateOption(idx, e.target.value)}
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  {newOptions.length > 2 && (
+                    <button
+                      onClick={() => removeOption(idx)}
+                      className="p-3 text-red-600 hover:bg-red-50 rounded-lg transition"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={addOption}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+              >
+                Add Option
+              </button>
+              <button
+                onClick={createPoll}
+                className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+              >
+                Create Poll
+              </button>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Polls List */}
+        <div className="space-y-6">
+          {polls.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+              <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">No polls yet. Create one to get started!</p>
+            </div>
+          ) : (
+            polls.map(poll => {
+              const total = getTotalVotes(poll);
+              const hasVoted = poll.votedBy.includes(userId);
+
+              return (
+                <div key={poll.id} className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-semibold text-gray-800">{poll.question}</h3>
+                    <button
+                      onClick={() => deletePoll(poll.id)}
+                      className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {poll.options.map(option => {
+                      const percentage = getPercentage(option.votes, total);
+                      
+                      return (
+                        <div key={option.id}>
+                          <button
+                            onClick={() => vote(poll.id, option.id)}
+                            disabled={hasVoted}
+                            className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                              hasVoted
+                                ? 'cursor-not-allowed bg-gray-50 border-gray-200'
+                                : 'hover:border-purple-500 hover:bg-purple-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium text-gray-800">{option.text}</span>
+                              <span className="text-sm font-semibold text-purple-600">
+                                {option.votes} votes ({percentage}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600">
+                      Total votes: <span className="font-semibold">{total}</span>
+                      {hasVoted && (
+                        <span className="ml-4 text-green-600 font-semibold">✓ You voted</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Vote className="w-8 h-8 text-purple-600" />
+              <h1 className="text-3xl font-bold text-gray-800">Voting App</h1>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage('home')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  currentPage === 'home'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Home className="w-5 h-5" />
+                Polls
+              </button>
+              <button
+                onClick={() => setCurrentPage('results')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  currentPage === 'results'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Trophy className="w-5 h-5" />
+                Results
+              </button>
+              {currentPage === 'home' && (
+                <button
+                  onClick={() => setShowCreateForm(!showCreateForm)}
+                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create Poll
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Page Content */}
+        {currentPage === 'home' ? renderHomePage() : renderResultsPage()}
+      </div>
+
+      {/* Option Detail Modal */}
+      {selectedOption && selectedPoll && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={closeModal}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 transform transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Option Details</h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Poll Question */}
+              <div>
+                <p className="text-sm text-gray-500 uppercase font-semibold mb-1">Poll Question</p>
+                <p className="text-lg text-gray-800">{selectedPoll.question}</p>
+              </div>
+
+              {/* Option Name */}
+              <div className="bg-purple-50 p-6 rounded-xl border-2 border-purple-200">
+                <p className="text-sm text-purple-600 uppercase font-semibold mb-2">Selected Option</p>
+                <p className="text-3xl font-bold text-purple-900">{selectedOption.text}</p>
+              </div>
+
+              {/* Statistics */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-blue-600">{selectedOption.votes}</p>
+                  <p className="text-sm text-gray-600 mt-1">Total Votes</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-green-600">
+                    {getPercentage(selectedOption.votes, getTotalVotes(selectedPoll))}%
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Vote Share</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-orange-600">
+                    #{selectedPoll.options
+                      .sort((a, b) => b.votes - a.votes)
+                      .findIndex(o => o.id === selectedOption.id) + 1}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Ranking</p>
+                </div>
+              </div>
+
+              {/* Visual Progress */}
+              <div>
+                <p className="text-sm text-gray-600 mb-2">Performance</p>
+                <div className="w-full bg-gray-200 rounded-full h-4">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                    style={{ width: `${getPercentage(selectedOption.votes, getTotalVotes(selectedPoll))}%` }}
+                  >
+                    <span className="text-xs text-white font-semibold">
+                      {getPercentage(selectedOption.votes, getTotalVotes(selectedPoll))}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Winner Badge */}
+              {getWinner(selectedPoll)?.id === selectedOption.id && getTotalVotes(selectedPoll) > 0 && (
+                <div className="bg-gradient-to-r from-yellow-400 to-amber-400 p-4 rounded-xl flex items-center gap-3">
+                  <Trophy className="w-8 h-8 text-white" />
+                  <div>
+                    <p className="text-white font-bold text-lg">Winner!</p>
+                    <p className="text-yellow-100 text-sm">This option has the most votes</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Comparison with other options */}
+              <div>
+                <p className="text-sm text-gray-600 mb-3 font-semibold">Compare with other options</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {selectedPoll.options
+                    .filter(o => o.id !== selectedOption.id)
+                    .sort((a, b) => b.votes - a.votes)
+                    .map(option => {
+                      const total = getTotalVotes(selectedPoll);
+                      const percentage = getPercentage(option.votes, total);
+                      return (
+                        <div key={option.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-gray-700">{option.text}</span>
+                          <span className="text-sm font-semibold text-gray-600">
+                            {option.votes} votes ({percentage}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={closeModal}
+                className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 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
